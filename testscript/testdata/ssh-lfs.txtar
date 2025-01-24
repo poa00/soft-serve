@@ -2,12 +2,14 @@
 
 [windows] dos2unix err1.txt err2.txt err3.txt errauth.txt
 
+skip 'breaks with git-lfs 3.5.1'
+
 # enable ssh lfs transfer
 env SOFT_SERVE_LFS_SSH_ENABLED=true
 # start soft serve
 exec soft serve &
-# wait for server to start
-waitforserver
+# wait for SSH server to start
+ensureserverrunning SSH_PORT
 
 # create a user
 soft user create foo --key "$USER1_AUTHORIZED_KEY"

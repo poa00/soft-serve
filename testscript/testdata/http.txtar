@@ -8,8 +8,8 @@
 
 # start soft serve
 exec soft serve &
-# wait for server to start
-waitforserver
+# wait for SSH server to start
+ensureserverrunning SSH_PORT
 
 # create user
 soft user create user1 --key "$USER1_AUTHORIZED_KEY"
@@ -46,7 +46,6 @@ git -C repo2 push origin HEAD --tags
 # dumb http git
 curl -XGET http://localhost:$HTTP_PORT/repo2.git/info/refs
 stdout '[0-9a-z]{40}	refs/heads/master\n[0-9a-z]{40}	refs/tags/v0.1.0'
-
 
 # http errors
 curl -XGET http://localhost:$HTTP_PORT/repo2111foobar.git/foo/bar

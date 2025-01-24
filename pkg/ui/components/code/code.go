@@ -47,7 +47,7 @@ func New(c common.Common, content, extension string) *Code {
 		TabWidth:        defaultTabWidth,
 		SideNotePercent: defaultSideNotePercent,
 		Viewport:        vp.New(c),
-		NoContentStyle:  c.Styles.NoContent.Copy().SetString("No Content."),
+		NoContentStyle:  c.Styles.NoContent.SetString("No Content."),
 	}
 	st := common.StyleConfig()
 	r.styleConfig = st
@@ -114,7 +114,7 @@ func (r *Code) Init() tea.Cmd {
 		for i, l := range lines {
 			lines[i] = common.TruncateString(l, sideNoteWidth)
 		}
-		content = lipgloss.JoinHorizontal(lipgloss.Left, strings.Join(lines, "\n"), content)
+		content = lipgloss.JoinHorizontal(lipgloss.Top, strings.Join(lines, "\n"), content)
 	}
 
 	// Fix styles after hard wrapping

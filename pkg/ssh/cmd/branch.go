@@ -61,18 +61,16 @@ func branchListCommand() *cobra.Command {
 
 func branchDefaultCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "default REPOSITORY [BRANCH]",
-		Short: "Set or get the default branch",
-		Args:  cobra.RangeArgs(1, 2),
+		Use:               "default REPOSITORY [BRANCH]",
+		Short:             "Set or get the default branch",
+		Args:              cobra.RangeArgs(1, 2),
+		PersistentPreRunE: checkIfReadable,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			be := backend.FromContext(ctx)
 			rn := strings.TrimSuffix(args[0], ".git")
 			switch len(args) {
 			case 1:
-				if err := checkIfReadable(cmd, args); err != nil {
-					return err
-				}
 				rr, err := be.Repository(ctx, rn)
 				if err != nil {
 					return err
@@ -148,7 +146,8 @@ func branchDeleteCommand() *cobra.Command {
 		Use:               "delete REPOSITORY BRANCH",
 		Aliases:           []string{"remove", "rm", "del"},
 		Short:             "Delete a branch",
-		PersistentPreRunE: checkIfCollab,
+		Args:              cobra.ExactArgs(2),
+		PersistentPreRunE: checkIfReadableAndCollab,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			be := backend.FromContext(ctx)

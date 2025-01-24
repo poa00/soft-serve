@@ -82,10 +82,11 @@ var (
 				}
 			}
 
+			lch := make(chan error, 1)
 			done := make(chan os.Signal, 1)
 			doneOnce := sync.OnceFunc(func() { close(done) })
 
-			lch := make(chan error, 1)
+			signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 			// This endpoint is added for testing purposes
 			// It allows us to stop the server from the test suite.
@@ -102,14 +103,13 @@ var (
 			}
 
 			go func() {
-				defer doneOnce()
 				lch <- s.Start()
+				doneOnce()
 			}()
 
-			signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 			<-done
 
-			ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+			ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer cancel()
 			if err := s.Shutdown(ctx); err != nil {
 				return err

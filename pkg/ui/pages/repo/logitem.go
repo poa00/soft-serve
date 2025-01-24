@@ -97,7 +97,7 @@ func (d LogItemDelegate) Render(w io.Writer, m list.Model, index int, listItem l
 				// title truncation symbol (1)
 				9),
 	)
-	hashStyle := styles.Hash.Copy().
+	hashStyle := styles.Hash.
 		Align(lipgloss.Right).
 		PaddingLeft(1).
 		Width(m.Width() -
@@ -134,7 +134,7 @@ func (d LogItemDelegate) Render(w io.Writer, m list.Model, index int, listItem l
 		d.common.Zone.Mark(
 			i.ID(),
 			styles.Base.Render(
-				lipgloss.JoinVertical(lipgloss.Top,
+				lipgloss.JoinVertical(lipgloss.Left,
 					truncate.String(fmt.Sprintf("%s%s",
 						title,
 						hash,

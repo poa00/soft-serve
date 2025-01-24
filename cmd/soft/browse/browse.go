@@ -90,7 +90,7 @@ var _ tea.Model = &model{}
 
 func (m *model) SetSize(w, h int) {
 	m.common.SetSize(w, h)
-	style := m.common.Styles.App.Copy()
+	style := m.common.Styles.App
 	wm := style.GetHorizontalFrameSize()
 	hm := style.GetVerticalFrameSize()
 	if m.showFooter {
@@ -206,7 +206,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View implements tea.Model.
 func (m *model) View() string {
-	style := m.common.Styles.App.Copy()
+	style := m.common.Styles.App
 	wm, hm := style.GetHorizontalFrameSize(), style.GetVerticalFrameSize()
 	if m.showFooter {
 		hm += m.footer.Height()
@@ -219,7 +219,7 @@ func (m *model) View() string {
 	case errorState:
 		err := m.common.Styles.ErrorTitle.Render("Bummer")
 		err += m.common.Styles.ErrorBody.Render(m.error.Error())
-		view = m.common.Styles.Error.Copy().
+		view = m.common.Styles.Error.
 			Width(m.common.Width -
 				wm -
 				m.common.Styles.ErrorBody.GetHorizontalFrameSize()).
@@ -230,7 +230,7 @@ func (m *model) View() string {
 	}
 
 	if m.showFooter {
-		view = lipgloss.JoinVertical(lipgloss.Top, view, m.footer.View())
+		view = lipgloss.JoinVertical(lipgloss.Left, view, m.footer.View())
 	}
 
 	return m.common.Zone.Scan(style.Render(view))

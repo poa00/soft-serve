@@ -34,6 +34,15 @@ var (
 	binPath string
 )
 
+func PrepareBuildCommand(binPath string) *exec.Cmd {
+	_, disableRaceSet := os.LookupEnv("SOFT_SERVE_DISABLE_RACE_CHECKS")
+	if disableRaceSet {
+		// don't add the -race flag
+		return exec.Command("go", "build", "-cover", "-o", binPath, filepath.Join("..", "cmd", "soft"))
+	}
+	return exec.Command("go", "build", "-race", "-cover", "-o", binPath, filepath.Join("..", "cmd", "soft"))
+}
+
 func TestMain(m *testing.M) {
 	tmp, err := os.MkdirTemp("", "soft-serve*")
 	if err != nil {
@@ -48,7 +57,7 @@ func TestMain(m *testing.M) {
 	}
 
 	// Build the soft binary with -cover flag.
-	cmd := exec.Command("go", "build", "-race", "-cover", "-o", binPath, filepath.Join("..", "cmd", "soft"))
+	cmd := PrepareBuildCommand(binPath)
 	if err := cmd.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to build soft-serve binary: %s", err)
 		os.Exit(1)
@@ -56,9 +65,6 @@ func TestMain(m *testing.M) {
 
 	// Run tests
 	os.Exit(m.Run())
-
-	// Add binPath to PATH
-	os.Setenv("PATH", fmt.Sprintf("%s%c%s", os.Getenv("PATH"), os.PathListSeparator, filepath.Dir(binPath)))
 }
 
 func TestScript(t *testing.T) {
@@ -73,28 +79,30 @@ func TestScript(t *testing.T) {
 		return path, pair
 	}
 
-	key, admin1 := mkkey("admin1")
+	admin1Key, admin1 := mkkey("admin1")
 	_, admin2 := mkkey("admin2")
-	_, user1 := mkkey("user1")
+	user1Key, user1 := mkkey("user1")
 
 	testscript.Run(t, testscript.Params{
 		Dir:                 "./testdata/",
 		UpdateScripts:       *update,
 		RequireExplicitExec: true,
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
-			"soft":          cmdSoft(admin1.Signer()),
-			"usoft":         cmdSoft(user1.Signer()),
-			"git":           cmdGit(key),
-			"curl":          cmdCurl,
-			"mkfile":        cmdMkfile,
-			"envfile":       cmdEnvfile,
-			"readfile":      cmdReadfile,
-			"dos2unix":      cmdDos2Unix,
-			"new-webhook":   cmdNewWebhook,
-			"waitforserver": cmdWaitforserver,
-			"stopserver":    cmdStopserver,
-			"ui":            cmdUI(admin1.Signer()),
-			"uui":           cmdUI(user1.Signer()),
+			"soft":                   cmdSoft("admin", admin1.Signer()),
+			"usoft":                  cmdSoft("user1", user1.Signer()),
+			"git":                    cmdGit(admin1Key),
+			"ugit":                   cmdGit(user1Key),
+			"curl":                   cmdCurl,
+			"mkfile":                 cmdMkfile,
+			"envfile":                cmdEnvfile,
+			"readfile":               cmdReadfile,
+			"dos2unix":               cmdDos2Unix,
+			"new-webhook":            cmdNewWebhook,
+			"ensureserverrunning":    cmdEnsureServerRunning,
+			"ensureservernotrunning": cmdEnsureServerNotRunning,
+			"stopserver":             cmdStopserver,
+			"ui":                     cmdUI(admin1.Signer()),
+			"uui":                    cmdUI(user1.Signer()),
 		},
 		Setup: func(e *testscript.Env) error {
 			// Add binPath to PATH
@@ -114,6 +122,8 @@ func TestScript(t *testing.T) {
 			e.Setenv("DATA_PATH", data)
 			e.Setenv("SSH_PORT", fmt.Sprintf("%d", sshPort))
 			e.Setenv("HTTP_PORT", fmt.Sprintf("%d", httpPort))
+			e.Setenv("STATS_PORT", fmt.Sprintf("%d", statsPort))
+			e.Setenv("GIT_PORT", fmt.Sprintf("%d", gitPort))
 			e.Setenv("ADMIN1_AUTHORIZED_KEY", admin1.AuthorizedKey())
 			e.Setenv("ADMIN2_AUTHORIZED_KEY", admin2.AuthorizedKey())
 			e.Setenv("USER1_AUTHORIZED_KEY", user1.AuthorizedKey())
@@ -179,13 +189,13 @@ func TestScript(t *testing.T) {
 	})
 }
 
-func cmdSoft(key ssh.Signer) func(ts *testscript.TestScript, neg bool, args []string) {
+func cmdSoft(user string, key ssh.Signer) func(ts *testscript.TestScript, neg bool, args []string) {
 	return func(ts *testscript.TestScript, neg bool, args []string) {
 		cli, err := ssh.Dial(
 			"tcp",
 			net.JoinHostPort("localhost", ts.Getenv("SSH_PORT")),
 			&ssh.ClientConfig{
-				User:            "admin",
+				User:            user,
 				Auth:            []ssh.AuthMethod{ssh.PublicKeys(key)},
 				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 			},
@@ -472,18 +482,55 @@ func cmdCurl(ts *testscript.TestScript, neg bool, args []string) {
 	check(ts, cmd.Execute(), neg)
 }
 
-func cmdWaitforserver(ts *testscript.TestScript, neg bool, args []string) {
-	// wait until the server is up
+func cmdEnsureServerRunning(ts *testscript.TestScript, neg bool, args []string) {
+	if len(args) < 1 {
+		ts.Fatalf("Must supply a TCP port of one of the services to connect to. " +
+			"These are set as env vars as they are randomized. " +
+			"Example usage: \"cmdensureserverrunning SSH_PORT\"\n" +
+			"Valid values for the env var: SSH_PORT|HTTP_PORT|GIT_PORT|STATS_PORT")
+	}
+
+	port := ts.Getenv(args[0])
+
+	// verify that the server is up
+	addr := net.JoinHostPort("localhost", port)
 	for {
 		conn, _ := net.DialTimeout(
 			"tcp",
-			net.JoinHostPort("localhost", fmt.Sprintf("%s", ts.Getenv("SSH_PORT"))),
+			addr,
 			time.Second,
 		)
 		if conn != nil {
+			ts.Logf("Server is running on port: %s", port)
 			conn.Close()
 			break
 		}
+	}
+}
+
+func cmdEnsureServerNotRunning(ts *testscript.TestScript, neg bool, args []string) {
+	if len(args) < 1 {
+		ts.Fatalf("Must supply a TCP port of one of the services to connect to. " +
+			"These are set as env vars as they are randomized. " +
+			"Example usage: \"cmdensureservernotrunning SSH_PORT\"\n" +
+			"Valid values for the env var: SSH_PORT|HTTP_PORT|GIT_PORT|STATS_PORT")
+	}
+
+	port := ts.Getenv(args[0])
+
+	// verify that the server is not up
+	addr := net.JoinHostPort("localhost", port)
+	for {
+		conn, _ := net.DialTimeout(
+			"tcp",
+			addr,
+			time.Second,
+		)
+		if conn != nil {
+			ts.Fatalf("server is running on port %s while it should not be running", port)
+			conn.Close()
+		}
+		break
 	}
 }
 
@@ -491,7 +538,7 @@ func cmdStopserver(ts *testscript.TestScript, neg bool, args []string) {
 	// stop the server
 	resp, err := http.DefaultClient.Head(fmt.Sprintf("%s/__stop", ts.Getenv("SOFT_SERVE_HTTP_PUBLIC_URL")))
 	check(ts, err, neg)
-	defer resp.Body.Close()
+	resp.Body.Close()
 	time.Sleep(time.Second * 2) // Allow some time for the server to stop
 }
 

@@ -58,7 +58,7 @@ manager:
 
 ```bash
 # macOS or Linux
-brew tap charmbracelet/tap && brew install charmbracelet/tap/soft-serve
+brew install charmbracelet/tap/soft-serve
 
 # Windows (with Winget)
 winget install charmbracelet.soft-serve
@@ -107,6 +107,11 @@ Make sure `git` is installed, then run `soft serve`. That’s it.
 
 This will create a `data` directory that will store all the repos, ssh keys,
 and database.
+
+By default, program configuration is stored within the `data` directory. But,
+this can be overridden by setting a custom path to a config file with `SOFT_SERVE_CONFIG_LOCATION`
+that is pre-created. If a config file pointed to by `SOFT_SERVE_CONFIG_LOCATION`, 
+the default location within the `data` dir is used for generating a default config.
 
 To change the default data path use `SOFT_SERVE_DATA_PATH` environment variable.
 
@@ -316,7 +321,7 @@ git push origin main
 Everything that needs authentication is done using SSH. Make sure you have
 added an entry for your Soft Serve instance in your `~/.ssh/config` file.
 
-By default, Soft Serve gives ready-only permission to anonymous connections to
+By default, Soft Serve gives read-only permission to anonymous connections to
 any of the above protocols. This is controlled by two settings `anon-access`
 and `allow-keyless`.
 
@@ -515,6 +520,8 @@ on the server it’ll be created.
 git push origin main
 ```
 
+### Nested Repositories
+
 Repositories can be nested too:
 
 ```sh
@@ -525,6 +532,16 @@ ssh -p 23231 localhost repo create charmbracelet/icecream
 git remote add charm ssh://localhost:23231/charmbracelet/icecream
 git push charm main
 ```
+
+### Mirrors
+
+You can also *import* repositories from any public remote. Use the `repo import` command.
+
+```sh
+ssh -p 23231 localhost repo import soft-serve https://github.com/charmbracelet/soft-serve
+```
+
+Use `--mirror` or `-m` to mark the repository as a *pull* mirror.
 
 ### Deleting Repositories
 

@@ -295,10 +295,10 @@ func (r *Repo) View() string {
 	wm, hm := r.getMargins()
 	hm += r.common.Styles.Tabs.GetHeight() +
 		r.common.Styles.Tabs.GetVerticalFrameSize()
-	s := r.common.Styles.Repo.Base.Copy().
+	s := r.common.Styles.Repo.Base.
 		Width(r.common.Width - wm).
 		Height(r.common.Height - hm)
-	mainStyle := r.common.Styles.Repo.Body.Copy().
+	mainStyle := r.common.Styles.Repo.Body.
 		Height(r.common.Height - hm)
 	var main string
 	var statusbar string
@@ -313,7 +313,7 @@ func (r *Repo) View() string {
 		"repo-main",
 		mainStyle.Render(main),
 	)
-	view := lipgloss.JoinVertical(lipgloss.Top,
+	view := lipgloss.JoinVertical(lipgloss.Left,
 		r.headerView(),
 		r.tabs.View(),
 		main,
@@ -334,27 +334,27 @@ func (r *Repo) headerView() string {
 	header = r.common.Styles.Repo.HeaderName.Render(header)
 	desc := strings.TrimSpace(r.selectedRepo.Description())
 	if desc != "" {
-		header = lipgloss.JoinVertical(lipgloss.Top,
+		header = lipgloss.JoinVertical(lipgloss.Left,
 			header,
 			r.common.Styles.Repo.HeaderDesc.Render(desc),
 		)
 	}
-	urlStyle := r.common.Styles.URLStyle.Copy().
-		Width(r.common.Width - lipgloss.Width(desc) - 1).
+	urlStyle := r.common.Styles.URLStyle.
+		Width(r.common.Width - lipgloss.Width(header) - 1).
 		Align(lipgloss.Right)
 	var url string
 	if cfg := r.common.Config(); cfg != nil {
 		url = r.common.CloneCmd(cfg.SSH.PublicURL, r.selectedRepo.Name())
 	}
-	url = common.TruncateString(url, r.common.Width-lipgloss.Width(desc)-1)
+	url = common.TruncateString(url, r.common.Width-lipgloss.Width(header)-1)
 	url = r.common.Zone.Mark(
 		fmt.Sprintf("%s-url", r.selectedRepo.Name()),
 		urlStyle.Render(url),
 	)
 
-	header = lipgloss.JoinHorizontal(lipgloss.Left, header, url)
+	header = lipgloss.JoinHorizontal(lipgloss.Top, header, url)
 
-	style := r.common.Styles.Repo.Header.Copy().Width(r.common.Width)
+	style := r.common.Styles.Repo.Header.Width(r.common.Width)
 	return style.Render(
 		truncate.Render(header),
 	)
@@ -425,7 +425,7 @@ func switchTabCmd(m common.TabComponent) tea.Cmd {
 
 func renderLoading(c common.Common, s spinner.Model) string {
 	msg := fmt.Sprintf("%s loading…", s.View())
-	return c.Styles.SpinnerContainer.Copy().
+	return c.Styles.SpinnerContainer.
 		Height(c.Height).
 		Render(msg)
 }
